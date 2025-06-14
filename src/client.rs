@@ -32,11 +32,7 @@ use crate::{
     error::{BitcoinRpcError, ClientError},
     traits::{Broadcaster, Reader, Signer, Wallet},
     types::{
-        CreateRawTransaction, CreateWallet, GetBlockVerbosityOne, GetBlockVerbosityZero,
-        GetBlockchainInfo, GetMempoolInfo, GetNewAddress, GetRawTransactionVerbosityOne,
-        GetRawTransactionVerbosityZero, GetTransaction, GetTxOut, ImportDescriptor,
-        ImportDescriptorResult, ListDescriptors, ListTransactions, ListUnspent,
-        PreviousTransactionOutput, SignRawTransactionWithWallet, SubmitPackage, TestMempoolAccept,
+        CreateRawTransaction, CreateWallet, GetBlockVerbosityOne, GetBlockVerbosityZero, GetBlockchainInfo, GetMempoolInfo, GetNewAddress, GetRawMempoolVerbose, GetRawTransactionVerbosityOne, GetRawTransactionVerbosityZero, GetTransaction, GetTxOut, ImportDescriptor, ImportDescriptorResult, ListDescriptors, ListTransactions, ListUnspent, PreviousTransactionOutput, SignRawTransactionWithWallet, SubmitPackage, TestMempoolAccept
     },
 };
 
@@ -314,6 +310,10 @@ impl Reader for Client {
         self.call::<Vec<Txid>>("getrawmempool", &[]).await
     }
 
+    async fn get_raw_mempool_verbose(&self) -> ClientResult<GetRawMempoolVerbose> {
+        self.call::<GetRawMempoolVerbose>("getrawmempool", &[to_value(true)?]).await
+    }
+
     async fn get_mempool_info(&self) -> ClientResult<GetMempoolInfo> {
         self.call::<GetMempoolInfo>("getmempoolinfo", &[]).await
     }
@@ -349,7 +349,7 @@ impl Reader for Client {
         self.call::<GetTxOut>(
             "gettxout",
             &[
-                to_value(txid.to_string())?,
+                to_value(txid)?,
                 to_value(vout)?,
                 to_value(include_mempool)?,
             ],
@@ -648,6 +648,12 @@ mod test {
         let got = client.get_raw_mempool().await.unwrap();
         let expected = vec![txid];
         assert_eq!(expected, got);
+
+        // get_raw_mempool_verbose
+        let got = client.get_raw_mempool_verbose().await.unwrap();
+        println!("{:?}", got);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got.get(&txid).unwrap().height, 101);
 
         // get_mempool_info
         let got = client.get_mempool_info().await.unwrap();
